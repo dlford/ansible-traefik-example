@@ -1,0 +1,15 @@
+- name: Ensure Docker config path exists
+  become: true
+  file:
+    path: "/etc/docker"
+    state: directory
+- name: Configure Docker data path
+  become: true
+  register: docker_data_path
+  copy:
+    src: "{{ inventory_dir }}/files/docker/daemon.json"
+    dest: /etc/docker/daemon.json
+    owner: root
+    group: root
+    mode: '0644'
+

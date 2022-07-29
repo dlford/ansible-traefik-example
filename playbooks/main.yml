@@ -1,0 +1,21 @@
+- hosts: CHANGE_TO_YOUR_HOST
+
+  vars:
+    ubuntu_codename: focal # Change this to match your Ubuntu version
+
+  pre_tasks:
+    - import_tasks: docker-config.yml
+      tags: docker
+
+  roles:
+    - docker_host
+    - traefik
+
+  # This is a demo app to make sure everything works
+  # It's also a really nice RSS reader
+  tasks:
+    - import_tasks: miniflux.yml
+      tags:
+        - miniflux
+        - sites
+

@@ -1,0 +1,62 @@
+- name: Start Miniflux
+  become: true
+  community.docker.docker_compose:
+    project_name: miniflux
+    remove_orphans: true
+    definition:
+      version: '3.4'
+      services:
+        miniflux:
+          container_name: miniflux_app
+          labels:
+            - "traefik.enable=true"
+            - "traefik.http.middlewares.minifluxhttp.compress=true"
+            - "traefik.http.services.miniflux.loadbalancer.server.scheme=http"
+            - "traefik.http.services.miniflux.loadbalancer.server.port=8080"
+            - "traefik.http.routers.miniflux.rule=Host(`{{ MINIFLUX_HOSTNAME }}`)"
+            - "traefik.http.routers.miniflux.entrypoints=https"
+            - "traefik.http.routers.miniflux.tls=true"
+            - "traefik.http.routers.miniflux.tls.certresolver=letsencrypt"
+            - "traefik.http.routers.miniflux.middlewares=minifluxhttp"
+            - 'docker-volume-backup.stop-during-backup="miniflux"'
+            - 'com.centurylinklabs.watchtower.enable="true"'
+          image: miniflux/miniflux:latest
+          restart: unless-stopped
+          ports:
+            - "8080:8080"
+          depends_on:
+            - db
+          networks:
+            - default
+            - miniflux
+          environment:
+            DATABASE_URL: "postgres://miniflux:{{ MINIFLUX_DB_PASS }}@db/miniflux?sslmode=disable"
+            RUN_MIGRATIONS: "1"
+            CREATE_ADMIN: "1"
+            ADMIN_USERNAME: "{{ MINIFLUX_USER }}"
+            ADMIN_PASSWORD: "{{ MINIFLUX_PASS }}"
+        db:
+          container_name: miniflux_db
+          labels:
+            - docker-volume-backup.stop-during-backup="miniflux"
+            - com.centurylinklabs.watchtower.enable="true"
+          image: postgres:latest
+          restart: unless-stopped
+          networks:
+            - miniflux
+          environment:
+            POSTGRES_USER: miniflux
+            POSTGRES_PASSWORD: "{{ MINIFLUX_DB_PASS }}"
+          volumes:
+            - db:/var/lib/postgresql/data
+          healthcheck:
+            test: ["CMD", "pg_isready", "-U", "miniflux"]
+            interval: 10s
+            start_period: 30s
+      networks:
+        miniflux:
+        default:
+          external:
+            name: gateway
+      volumes:
+        db:
